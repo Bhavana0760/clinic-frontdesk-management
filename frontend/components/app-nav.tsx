@@ -21,10 +21,16 @@ export function AppNav() {
   const [token, setToken] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
 
+
   useEffect(() => {
     setToken(getToken())
     setIsLoaded(true)
   }, [])
+
+  // Re-check token on pathname change to update header after login/logout
+  useEffect(() => {
+    setToken(getToken())
+  }, [pathname])
 
   const handleLogout = () => {
     clearToken()
