@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common"
+import { Body, Controller, Get, Param, Patch, Post, ValidationPipe } from "@nestjs/common"
 import type { CreateQueueEntryDto } from "./dto/create-queue-entry.dto"
 import { QueueService } from "./queue.service"
-import type { UpdateQueueStatusDto } from "./dto/update-queue-status.dto"
+import { UpdateQueueStatusDto } from "./dto/update-queue-status.dto"
 
 @Controller("queue")
 export class QueueController {
@@ -19,7 +19,18 @@ export class QueueController {
   }
 
   @Patch(":id/status")
-  updateStatus(@Param("id") id: string, @Body() dto: UpdateQueueStatusDto) {
+  updateStatus(
+    @Param("id") id: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: UpdateQueueStatusDto,
+    @Body() rawBody: any
+  ) {
+    console.log(`PATCH /queue/${id}/status called with status:`, dto.status)
+    console.log('Full dto:', dto)
+    console.log('Raw request body:', rawBody)
+    if (!dto.status) {
+      console.error('Status is undefined in request body:', dto, rawBody)
+      throw new Error('Status is required')
+    }
     return this.service.updateStatus(Number(id), dto.status)
   }
 
