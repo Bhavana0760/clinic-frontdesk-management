@@ -113,12 +113,13 @@ backend/
 ## Environment Variables
 Create a `.env` file in the `backend/` directory. Example:
 ```
+PORT=4000
 DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=your_db_user
-DB_PASSWORD=your_db_password
-DB_DATABASE=clinic_db
-JWT_SECRET=your_jwt_secret
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=clinic_front_desk
+JWT_SECRET=supersecret_jwt_key_change_me
 ```
 
 ---
