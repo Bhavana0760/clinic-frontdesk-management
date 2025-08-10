@@ -135,9 +135,14 @@ npm install
 ### 2. Set up environment variables
 - Copy `.env.example` to `.env` and fill in your values (if `.env.example` exists)
 
+### 3. Build the project and ensure dist folder is created
+```bash
+npm run build
+```
+
 ### 3. Run database migrations
 ```bash
-npm run typeorm migration:run
+npm run migration:run
 ```
 
 ### 4. Seeding the data
