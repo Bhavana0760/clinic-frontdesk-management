@@ -45,10 +45,24 @@ export class QueueService {
     })
   }
 
-  async updateStatus(id: number, status: QueueStatus) {
+  async updateStatus(id: number, status: QueueStatus | string) {
     const entry = await this.repo.findOne({ where: { id } })
     if (!entry) throw new NotFoundException("Queue entry not found")
-    entry.status = status
+    // Convert string status to QueueStatus enum if needed
+    let newStatus: QueueStatus
+    if (typeof status === "string") {
+      // Accept both enum values and their string representations
+      const statusKey = Object.keys(QueueStatus).find(
+        (key) => QueueStatus[key as keyof typeof QueueStatus] === status || key === status
+      )
+      if (!statusKey) {
+        throw new Error(`Invalid status value: ${status}`)
+      }
+      newStatus = QueueStatus[statusKey as keyof typeof QueueStatus]
+    } else {
+      newStatus = status
+    }
+    entry.status = newStatus
     return this.repo.save(entry)
   }
 
