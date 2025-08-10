@@ -140,7 +140,12 @@ npm install
 npm run typeorm migration:run
 ```
 
-### 4. Start the server
+### 4. Seeding the data
+```bash
+npm run seed
+```
+
+### 5. Start the server
 ```bash
 npm run start:dev
 ```
