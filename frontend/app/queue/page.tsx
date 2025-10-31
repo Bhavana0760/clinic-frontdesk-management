@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Plus, Users, Clock, AlertTriangle, CheckCircle, SkipForward } from "lucide-react"
 import { getTokenOrRedirect } from "@/lib/auth"
 import { useToast } from "@/components/ui/use-toast"
@@ -136,11 +137,15 @@ export default function QueuePage() {
     }
   }
 
+  const activeQueue = queue.filter((q) => q.status === "waiting" || q.status === "with_doctor")
+  const completedSkippedQueue = queue.filter((q) => q.status === "completed" || q.status === "skipped")
+
   const queueStats = {
-    total: queue.length,
+    total: activeQueue.length,
     waiting: queue.filter((q) => q.status === "waiting").length,
     withDoctor: queue.filter((q) => q.status === "with_doctor").length,
     urgent: queue.filter((q) => q.urgent).length,
+    completed: queue.filter((q) => q.status === "completed").length,
   }
 
   if (loading) {
@@ -155,16 +160,17 @@ export default function QueuePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Queue Management</h1>
-          <p className="text-muted-foreground">Manage walk-in patients and queue priorities</p>
+    <TooltipProvider>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Queue Management</h1>
+            <p className="text-muted-foreground">Manage walk-in patients and queue priorities</p>
+          </div>
         </div>
-      </div>
 
       {/* Queue Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total in Queue</CardTitle>
@@ -202,6 +208,16 @@ export default function QueuePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{queueStats.urgent}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed Cases</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{queueStats.completed}</div>
           </CardContent>
         </Card>
       </div>
@@ -265,9 +281,9 @@ export default function QueuePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Current Queue
+            Active Queue
             <Badge variant="secondary" className="ml-2">
-              {queue.length} patients
+              {activeQueue.length} patients
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -285,7 +301,7 @@ export default function QueuePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {queue.map((entry) => (
+              {activeQueue.map((entry) => (
                 <TableRow key={entry.id} className={entry.urgent ? "bg-red-50" : ""}>
                   <TableCell className="font-bold text-lg">#{entry.queueNumber}</TableCell>
                   <TableCell className="font-medium">{entry.patientName}</TableCell>
@@ -310,54 +326,82 @@ export default function QueuePage() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1 flex-wrap">
                       {entry.status === "waiting" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateStatus(entry.id, "with_doctor")}
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateStatus(entry.id, "with_doctor")}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Mark as with doctor</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {entry.status === "with_doctor" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateStatus(entry.id, "completed")}
-                          className="text-green-600 hover:text-green-700"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateStatus(entry.id, "completed")}
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Mark as completed</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {(entry.status === "waiting" || entry.status === "with_doctor") && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateStatus(entry.id, "skipped")}
-                          className="text-orange-600 hover:text-orange-700"
-                        >
-                          <SkipForward className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateStatus(entry.id, "skipped")}
+                              className="text-orange-600 hover:text-orange-700"
+                            >
+                              <SkipForward className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Skip patient</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {!entry.urgent && entry.status === "waiting" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => markUrgent(entry.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <AlertTriangle className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => markUrgent(entry.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Mark as urgent</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
-              {queue.length === 0 && (
+              {activeQueue.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8">
                     <div className="text-muted-foreground">
-                      No patients in queue. Add walk-in patients to get started.
+                      No active patients in queue. Add walk-in patients to get started.
                     </div>
                   </TableCell>
                 </TableRow>
@@ -366,6 +410,69 @@ export default function QueuePage() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+
+      {/* Completed and Skipped Queue */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5" />
+            Completed & Skipped Patients
+            <Badge variant="secondary" className="ml-2">
+              {completedSkippedQueue.length} patients
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Queue #</TableHead>
+                <TableHead>Patient Name</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Added</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {completedSkippedQueue.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-bold text-lg">#{entry.queueNumber}</TableCell>
+                  <TableCell className="font-medium">{entry.patientName}</TableCell>
+                  <TableCell>{entry.patientPhone || "-"}</TableCell>
+                  <TableCell>
+                    <QueueStatusBadge status={entry.status} />
+                  </TableCell>
+                  <TableCell>
+                    {entry.urgent && (
+                      <Badge variant="destructive" className="flex items-center gap-1 w-fit">
+                        <AlertTriangle className="h-3 w-3" />
+                        Urgent
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(entry.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {completedSkippedQueue.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      No completed or skipped patients yet.
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      </div>
+    </TooltipProvider>
   )
 }

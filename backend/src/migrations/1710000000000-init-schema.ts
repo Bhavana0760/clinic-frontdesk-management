@@ -28,6 +28,9 @@ export class InitSchema1710000000000 implements MigrationInterface {
           { name: "gender", type: "varchar" },
           { name: "location", type: "varchar" },
           { name: "availability", type: "text", isNullable: true },
+          { name: "workingHours", type: "text", isNullable: true },
+          { name: "availabilityStatus", type: "varchar", default: "'available'" },
+          { name: "unavailabilityReason", type: "text", isNullable: true },
         ],
       }),
     )
@@ -58,9 +61,10 @@ export class InitSchema1710000000000 implements MigrationInterface {
           {
             name: "status",
             type: "enum",
-            enum: ["booked", "completed", "canceled"],
+            enum: ["booked", "completed", "canceled", "skipped", "with_doctor"],
             default: "'booked'",
           },
+          { name: "urgent", type: "boolean", default: false },
           { name: "createdAt", type: "datetime", default: "CURRENT_TIMESTAMP" },
         ],
       }),

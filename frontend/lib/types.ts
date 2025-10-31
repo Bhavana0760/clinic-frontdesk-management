@@ -5,6 +5,14 @@ export interface Doctor {
   gender: string
   location: string
   availability?: { day: string; slots: string[] }[]
+  workingHours?: { 
+    day: string; 
+    isWorking: boolean; 
+    startTime: string; 
+    endTime: string; 
+  }[]
+  availabilityStatus?: 'available' | 'unavailable'
+  unavailabilityReason?: string
 }
 
 export interface Patient {
@@ -20,7 +28,8 @@ export interface Appointment {
   patient: Patient
   startAt: string
   endAt: string
-  status: "booked" | "completed" | "canceled"
+  status: "booked" | "completed" | "canceled" | "skipped" | "with_doctor"
+  urgent: boolean
   createdAt: string
 }
 

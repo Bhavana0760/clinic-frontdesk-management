@@ -5,11 +5,13 @@ export function AppointmentStatusBadge({ status }: { status: string }) {
     booked: "default" as const,
     completed: "secondary" as const,
     canceled: "destructive" as const,
+    skipped: "destructive" as const,
+    with_doctor: "outline" as const,
   }
 
   return (
     <Badge variant={variants[status as keyof typeof variants] || "outline"}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
     </Badge>
   )
 }

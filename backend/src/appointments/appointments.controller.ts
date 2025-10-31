@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from "@nestjs/common"
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Patch } from "@nestjs/common"
 import { AppointmentsService } from "./appointments.service"
 import type { UpdateAppointmentDto } from "./dto/update-appointment.dto"
+import { AppointmentStatus } from "../entities/enums"
 
 @Controller("appointments")
 export class AppointmentsController {
@@ -29,5 +30,15 @@ export class AppointmentsController {
   @Delete(":id")
   cancel(@Param("id") id: string) {
     return this.service.cancel(Number(id))
+  }
+
+  @Patch(":id/status")
+  updateStatus(@Param("id") id: string, @Body("status") status: AppointmentStatus) {
+    return this.service.updateStatus(Number(id), status)
+  }
+
+  @Patch(":id/priority")
+  markAsUrgent(@Param("id") id: string) {
+    return this.service.markAsUrgent(Number(id))
   }
 }

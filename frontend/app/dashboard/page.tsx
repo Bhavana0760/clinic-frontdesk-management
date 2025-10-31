@@ -45,12 +45,15 @@ export default function DashboardPage() {
     fetchData()
   }, [token])
 
+  const activeQueue = queue.filter((q) => q.status === "waiting" || q.status === "with_doctor")
+  const completedSkippedQueue = queue.filter((q) => q.status === "completed" || q.status === "skipped")
+
   const stats = {
-    totalQueue: queue.length,
+    totalQueue: activeQueue.length,
     waitingPatients: queue.filter((q) => q.status === "waiting").length,
     todayAppointments: appointments.filter((a) => {
       const today = new Date().toDateString()
-      return new Date(a.startAt).toDateString() === today
+      return new Date(a.startAt).toDateString() === today && a.status !== "canceled" && a.status !== "skipped"
     }).length,
     completedToday: appointments.filter((a) => {
       const today = new Date().toDateString()
@@ -139,8 +142,8 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Current Queue</CardTitle>
-            <CardDescription>Patients waiting to be seen</CardDescription>
+            <CardTitle>Active Queue</CardTitle>
+            <CardDescription>Patients waiting or with doctor</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -153,7 +156,7 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {queue.slice(0, 5).map((entry) => (
+                {activeQueue.slice(0, 5).map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">{entry.queueNumber}</TableCell>
                     <TableCell>{entry.patientName}</TableCell>
@@ -163,19 +166,19 @@ export default function DashboardPage() {
                     <TableCell>{entry.urgent && <Badge variant="destructive">Urgent</Badge>}</TableCell>
                   </TableRow>
                 ))}
-                {queue.length === 0 && (
+                {activeQueue.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      No patients in queue
+                      No active patients in queue
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-            {queue.length > 5 && (
+            {activeQueue.length > 5 && (
               <div className="mt-4 text-center">
                 <Button asChild variant="outline">
-                  <Link href="/queue">View All ({queue.length})</Link>
+                  <Link href="/queue">View All ({activeQueue.length})</Link>
                 </Button>
               </div>
             )}
@@ -192,16 +195,21 @@ export default function DashboardPage() {
               {appointments
                 .filter((a) => {
                   const today = new Date().toDateString()
-                  return new Date(a.startAt).toDateString() === today
+                  return new Date(a.startAt).toDateString() === today && a.status !== "canceled" && a.status !== "skipped"
                 })
                 .slice(0, 5)
                 .map((appointment) => (
                   <div
                     key={appointment.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                    className={`flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 ${appointment.urgent ? "bg-red-50 border-red-200" : ""}`}
                   >
                     <div className="space-y-1">
-                      <p className="font-medium">{appointment.patient.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{appointment.patient.name}</p>
+                        {appointment.urgent && (
+                          <Badge variant="destructive" className="text-xs">Urgent</Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {new Date(appointment.startAt).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -215,7 +223,7 @@ export default function DashboardPage() {
                 ))}
               {appointments.filter((a) => {
                 const today = new Date().toDateString()
-                return new Date(a.startAt).toDateString() === today
+                return new Date(a.startAt).toDateString() === today && a.status !== "canceled" && a.status !== "skipped"
               }).length === 0 && (
                 <div className="text-center text-muted-foreground py-4">No appointments scheduled for today</div>
               )}
@@ -230,6 +238,142 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Completed and Skipped Queue */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Completed & Skipped Patients (Queue)</CardTitle>
+          <CardDescription>Queue entries that have been completed or skipped today</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Patient</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {completedSkippedQueue.slice(0, 10).map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-medium">{entry.queueNumber}</TableCell>
+                  <TableCell>{entry.patientName}</TableCell>
+                  <TableCell>{entry.patientPhone || "-"}</TableCell>
+                  <TableCell>
+                    <QueueStatusBadge status={entry.status} />
+                  </TableCell>
+                  <TableCell>{entry.urgent && <Badge variant="destructive">Urgent</Badge>}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(entry.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {completedSkippedQueue.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    No completed or skipped patients yet
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          {completedSkippedQueue.length > 10 && (
+            <div className="mt-4 text-center">
+              <Button asChild variant="outline">
+                <Link href="/queue">View All ({completedSkippedQueue.length})</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Completed and Skipped Appointments */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Completed & Skipped Appointments</CardTitle>
+          <CardDescription>Appointments that have been completed or skipped today</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>Patient</TableHead>
+                <TableHead>Doctor</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Priority</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {appointments
+                .filter((a) => {
+                  const today = new Date().toDateString()
+                  return new Date(a.startAt).toDateString() === today && (a.status === "completed" || a.status === "skipped")
+                })
+                .slice(0, 10)
+                .map((appointment) => (
+                  <TableRow key={appointment.id} className={appointment.urgent ? "bg-red-50" : ""}>
+                    <TableCell>
+                      <div className="text-sm">
+                        {new Date(appointment.startAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        -{" "}
+                        {new Date(appointment.endAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </TableCell>
+                    <TableCell>{appointment.patient.name}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium">{appointment.doctor.name}</div>
+                        <div className="text-xs text-muted-foreground">{appointment.doctor.specialization}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <AppointmentStatusBadge status={appointment.status} />
+                    </TableCell>
+                    <TableCell>
+                      {appointment.urgent && (
+                        <Badge variant="destructive" className="text-xs">Urgent</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              {appointments.filter((a) => {
+                const today = new Date().toDateString()
+                return new Date(a.startAt).toDateString() === today && (a.status === "completed" || a.status === "skipped")
+              }).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    No completed or skipped appointments yet
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          {appointments.filter((a) => {
+            const today = new Date().toDateString()
+            return new Date(a.startAt).toDateString() === today && (a.status === "completed" || a.status === "skipped")
+          }).length > 10 && (
+            <div className="mt-4 text-center">
+              <Button asChild variant="outline">
+                <Link href="/appointments">View All</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

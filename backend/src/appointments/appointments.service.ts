@@ -34,16 +34,91 @@ export class AppointmentsService {
   }
 
   private async checkOverlap(doctorId: number, startAt: Date, endAt: Date, excludeId?: number) {
-    const overlapping = await this.repo.findOne({
+    // Get all non-canceled and non-skipped appointments for this doctor
+    const existingAppointments = await this.repo.find({
       where: {
         doctor: { id: doctorId },
-        status: Not(AppointmentStatus.CANCELED) as any,
-        startAt: Between(startAt, endAt) as any,
       },
+      relations: ['doctor', 'patient'],
     })
-    // More robust overlap check: any (a.start < newEnd && newStart < a.end)
-    if (overlapping && overlapping.id !== excludeId) {
-      throw new BadRequestException("Time slot overlaps with an existing appointment")
+
+    // Filter out canceled, skipped, and the appointment being updated
+    const activeAppointments = existingAppointments.filter(appt => {
+      if (excludeId && appt.id === excludeId) {
+        return false // Skip the appointment being updated
+      }
+      // Only consider appointments that are not canceled or skipped
+      return appt.status !== AppointmentStatus.CANCELED && appt.status !== AppointmentStatus.SKIPPED
+    })
+
+    // Check for any overlapping appointments
+    // Two appointments overlap if: (a.start < newEnd && newStart < a.end)
+    const overlapping = activeAppointments.find(appt => {
+      const existingStart = new Date(appt.startAt).getTime()
+      const existingEnd = new Date(appt.endAt).getTime()
+      const newStart = startAt.getTime()
+      const newEnd = endAt.getTime()
+      
+      // Check if there's any overlap
+      return existingStart < newEnd && newStart < existingEnd
+    })
+
+    if (overlapping) {
+      const formatTime = (date: Date) => {
+        return new Date(date).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        })
+      }
+      
+      throw new BadRequestException(
+        `This time slot overlaps with an existing appointment for Dr. ${overlapping.doctor.name} ` +
+        `(${formatTime(overlapping.startAt)} - ${formatTime(overlapping.endAt)}) ` +
+        `with patient ${overlapping.patient.name}`
+      )
+    }
+  }
+
+  private checkWorkingHours(doctor: Doctor, startAt: Date, endAt: Date) {
+    if (!doctor.workingHours || doctor.workingHours.length === 0) {
+      // If no working hours are set, allow all appointments (backward compatibility)
+      return
+    }
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const appointmentDay = dayNames[startAt.getDay()]
+    
+    const workingDay = doctor.workingHours.find(wh => wh.day === appointmentDay)
+    
+    if (!workingDay || !workingDay.isWorking) {
+      const availableDays = doctor.workingHours
+        .filter(wh => wh.isWorking)
+        .map(wh => `${wh.day} (${wh.startTime} - ${wh.endTime})`)
+        .join(', ')
+      
+      throw new BadRequestException(
+        `Dr. ${doctor.name} is not available on ${appointmentDay}. Available days: ${availableDays || 'None set'}`
+      )
+    }
+
+    // Convert appointment times to minutes for easier comparison
+    const appointmentStart = startAt.getHours() * 60 + startAt.getMinutes()
+    const appointmentEnd = endAt.getHours() * 60 + endAt.getMinutes()
+    
+    // Parse working hours
+    const [workStartHour, workStartMin] = workingDay.startTime.split(':').map(Number)
+    const [workEndHour, workEndMin] = workingDay.endTime.split(':').map(Number)
+    const workingStart = workStartHour * 60 + workStartMin
+    const workingEnd = workEndHour * 60 + workEndMin
+    
+    if (appointmentStart < workingStart || appointmentEnd > workingEnd) {
+      const appointmentStartStr = String(startAt.getHours()).padStart(2, '0') + ':' + String(startAt.getMinutes()).padStart(2, '0')
+      const appointmentEndStr = String(endAt.getHours()).padStart(2, '0') + ':' + String(endAt.getMinutes()).padStart(2, '0')
+      
+      throw new BadRequestException(
+        `Appointment time (${appointmentStartStr} - ${appointmentEndStr}) is outside Dr. ${doctor.name}'s working hours (${workingDay.startTime} - ${workingDay.endTime}) on ${appointmentDay}`
+      )
     }
   }
 
@@ -53,6 +128,9 @@ export class AppointmentsService {
     const startAt = new Date(dto.startAt)
     const endAt = new Date(dto.endAt)
     if (endAt <= startAt) throw new BadRequestException("endAt must be after startAt")
+
+    // Check if appointment is within doctor's working hours
+    this.checkWorkingHours(doctor, startAt, endAt)
 
     const patient =
       dto.patientId && dto.patientId > 0
@@ -77,12 +155,19 @@ export class AppointmentsService {
   }
 
   async update(id: number, dto: UpdateAppointmentDto) {
-    const appt = await this.repo.findOne({ where: { id } })
+    const appt = await this.repo.findOne({ 
+      where: { id },
+      relations: ['doctor']
+    })
     if (!appt) throw new NotFoundException("Appointment not found")
     if (dto.startAt || dto.endAt) {
       const newStart = dto.startAt ? new Date(dto.startAt) : appt.startAt
       const newEnd = dto.endAt ? new Date(dto.endAt) : appt.endAt
       if (newEnd <= newStart) throw new BadRequestException("endAt must be after startAt")
+      
+      // Check if the new times are within doctor's working hours
+      this.checkWorkingHours(appt.doctor, newStart, newEnd)
+      
       await this.checkOverlap(appt.doctor.id, newStart, newEnd, appt.id)
       appt.startAt = newStart
       appt.endAt = newEnd
@@ -95,6 +180,20 @@ export class AppointmentsService {
     const appt = await this.repo.findOne({ where: { id } })
     if (!appt) throw new NotFoundException("Appointment not found")
     appt.status = AppointmentStatus.CANCELED
+    return this.repo.save(appt)
+  }
+
+  async updateStatus(id: number, status: AppointmentStatus) {
+    const appt = await this.repo.findOne({ where: { id } })
+    if (!appt) throw new NotFoundException("Appointment not found")
+    appt.status = status
+    return this.repo.save(appt)
+  }
+
+  async markAsUrgent(id: number) {
+    const appt = await this.repo.findOne({ where: { id } })
+    if (!appt) throw new NotFoundException("Appointment not found")
+    appt.urgent = true
     return this.repo.save(appt)
   }
 }

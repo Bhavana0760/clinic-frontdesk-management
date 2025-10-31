@@ -27,6 +27,9 @@ export class Appointment {
   @Column({ type: "enum", enum: AppointmentStatus, default: AppointmentStatus.BOOKED })
   status!: AppointmentStatus
 
+  @Column({ default: false })
+  urgent!: boolean
+
   @CreateDateColumn()
   createdAt!: Date
 }

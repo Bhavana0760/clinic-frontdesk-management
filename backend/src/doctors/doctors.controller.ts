@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from "@nestjs/common"
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req, Patch } from "@nestjs/common"
 import type { Request } from "express"
 import { AuthGuard } from "@nestjs/passport"
 import { DoctorsService } from "./doctors.service"
 import type { CreateDoctorDto } from "./dto/create-doctor.dto"
 import type { UpdateDoctorDto } from "./dto/update-doctor.dto"
+import { UpdateAvailabilityDto } from "./dto/update-availability.dto"
 
 @UseGuards(AuthGuard("jwt"))
 @Controller("doctors")
@@ -23,7 +24,6 @@ export class DoctorsController {
 
   @Post()
   async create(@Body() body: any) {
-    console.log('POST /doctors body:', JSON.stringify(body));
     try {
       return await this.service.create(body);
     } catch (error) {
@@ -33,8 +33,13 @@ export class DoctorsController {
   }
 
   @Put(":id")
-  update(@Param("id") id: string, @Body() dto: UpdateDoctorDto) {
+  update(@Param("id") id: string, @Body() dto: any) {
     return this.service.update(Number(id), dto)
+  }
+
+  @Patch(":id/availability")
+  updateAvailability(@Param("id") id: string, @Body() dto: UpdateAvailabilityDto) {
+    return this.service.updateAvailability(Number(id), dto)
   }
 
   @Delete(":id")

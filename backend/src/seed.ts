@@ -37,17 +37,37 @@ async function run() {
     specialization: "Cardiology",
     gender: "Female",
     location: "Clinic A",
+    availabilityStatus: "available",
     availability: [
       { day: "Mon", slots: ["09:00", "10:00", "11:00"] },
       { day: "Tue", slots: ["13:00", "14:00"] },
     ],
+    workingHours: [
+      { day: "Monday", isWorking: true, startTime: "09:00", endTime: "17:00" },
+      { day: "Tuesday", isWorking: true, startTime: "09:00", endTime: "17:00" },
+      { day: "Wednesday", isWorking: true, startTime: "09:00", endTime: "17:00" },
+      { day: "Thursday", isWorking: true, startTime: "09:00", endTime: "17:00" },
+      { day: "Friday", isWorking: true, startTime: "09:00", endTime: "17:00" },
+      { day: "Saturday", isWorking: false, startTime: "09:00", endTime: "17:00" },
+      { day: "Sunday", isWorking: false, startTime: "09:00", endTime: "17:00" },
+    ]
   })
   const dr2 = doctorRepo.create({
     name: "Dr. Bob Smith",
     specialization: "Dermatology",
     gender: "Male",
     location: "Clinic B",
+    availabilityStatus: "available",
     availability: [{ day: "Wed", slots: ["09:30", "10:30"] }],
+    workingHours: [
+      { day: "Monday", isWorking: true, startTime: "10:00", endTime: "18:00" },
+      { day: "Tuesday", isWorking: true, startTime: "10:00", endTime: "18:00" },
+      { day: "Wednesday", isWorking: true, startTime: "10:00", endTime: "18:00" },
+      { day: "Thursday", isWorking: true, startTime: "10:00", endTime: "18:00" },
+      { day: "Friday", isWorking: true, startTime: "10:00", endTime: "18:00" },
+      { day: "Saturday", isWorking: true, startTime: "10:00", endTime: "14:00" },
+      { day: "Sunday", isWorking: false, startTime: "10:00", endTime: "18:00" },
+    ]
   })
   await doctorRepo.save([dr1, dr2])
 
@@ -58,24 +78,36 @@ async function run() {
     patientRepo.create({ name: "Jane Roe", phone: "555-2000", email: "jane@example.com" }),
   )
 
-  const now = new Date()
-  const in30 = new Date(now.getTime() + 30 * 60000)
+  // Create appointments within doctors' working hours
+  const today = new Date()
+  
+  // Appointment 1: Dr. Alice Wang (works 09:00-17:00) - 10:00 AM to 11:00 AM today
+  const appt1Start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0, 0)
+  const appt1End = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 11, 0, 0)
+  
   await apptRepo.save(
     apptRepo.create({
       doctor: dr1,
       patient: p1,
-      startAt: now,
-      endAt: in30,
+      startAt: appt1Start,
+      endAt: appt1End,
       status: AppointmentStatus.BOOKED,
+      urgent: false,
     }),
   )
+  
+  // Appointment 2: Dr. Bob Smith (works 10:00-18:00) - 2:00 PM to 3:00 PM today
+  const appt2Start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0, 0)
+  const appt2End = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 0, 0)
+  
   await apptRepo.save(
     apptRepo.create({
       doctor: dr2,
       patient: p2,
-      startAt: new Date(now.getTime() + 2 * 3600000),
-      endAt: new Date(now.getTime() + 3 * 3600000),
+      startAt: appt2Start,
+      endAt: appt2End,
       status: AppointmentStatus.BOOKED,
+      urgent: false,
     }),
   )
 
